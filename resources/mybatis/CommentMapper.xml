@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.CommentsDao">
+	<!-- app端获取评论列表和评论总数 -->
+	<resultMap type="CommentPO" id="appCommentsMap">
+		<id property="id" column="id" />
+		<result property="momentsId" column="moments_id" />
+		<result property="userId" column="user_id" />
+		<result property="contents" column="contents" />
+		<result property="status" column="status" />
+		<result property="submitTime" column="submit_time"/>   
+		<result property="platform" column="platform"/>
+		<result property="userName" column="user_name" />
+	</resultMap>
+	<!-- 查询评论列表 ，限制显示两条，时间倒序排列-->
+	<select id="selectAppCommentsListByMomentsId" parameterType="integer"
+		resultMap="appCommentsMap">
+		SELECT * from t_moms_comments where moments_id=#{id} order
+		by submit_time DESC limit 2
+	</select>
+	<!-- 查询评论总数  -->
+	<select id="selectAppCommentsCountByMomentsId" parameterType="integer"
+		resultType="integer">
+		SELECT count(*) from t_moms_comments where moments_id=#{id}
+	</select> 
+	<!-- 通过momentsId删除评论 -->
+	<update id="deleteCommentByMomentsId" parameterType="integer">
+		update t_moms_comments set `status`=1 where moments_id=#{id}
+	</update>
+	<update id="delCommentByComId" parameterType="java.lang.Integer">
+		UPDATE t_moms_comments set `status`=1 where id = #{id}
+	</update>
+	<select id="getAppCommentsByMomId" parameterType="java.util.Map" resultMap="appCommentsMap">
+		SELECT 
+			id,
+			moments_id,
+			submit_time,
+			user_id,
+			(case 
+			  when (select count(1) from t_user_app t where t.user_id=tmc.user_id) = 0 then 
+			    (select t1.branch from t_user t1 where t1.user_id=tmc.user_id)
+			  else 
+			    (select 
+				     case
+				    	 when t2.nickName is not null then t2.nickName
+				    	 else t2.user_name 
+				     end
+				 from t_user_app t2 where t2.user_id=tmc.user_id)
+			end) user_name,
+			tmc.contents,
+			tmc.status,
+			tmc.platform 
+		FROM 
+			t_moms_comments tmc
+		WHERE tmc.moments_id=#{momentsId} 
+		and tmc.status = 0
+		ORDER BY tmc.submit_time DESC 
+		LIMIT #{pager.startRow},#{pager.pageSize}		
+	</select>
+	<select id="getCommentCountByMomId" parameterType="java.util.Map" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(1) 
+		FROM (
+			SELECT 
+				id,
+				moments_id,
+				submit_time,
+				user_id,
+				(case 
+				  when (select count(1) from t_user_app t where t.user_id=tmc.user_id) = 0 then 
+				    (select t1.branch from t_user t1 where t1.user_id=tmc.user_id)
+				  else 
+				    (select 
+					     case
+					    	 when t2.nickName is not null then t2.nickName
+					    	 else t2.user_name 
+					     end
+					 from t_user_app t2 where t2.user_id=tmc.user_id)
+				end) user_name,
+				tmc.contents,
+				tmc.status,
+				tmc.platform 
+			FROM 
+				t_moms_comments tmc
+			WHERE tmc.moments_id=#{momentsId} 
+			and tmc.status = 0
+			ORDER BY tmc.submit_time DESC 
+			LIMIT #{pager.startRow},#{pager.pageSize}
+		)
+	</select>
+	<select id="selectCurrentUserPhoto" parameterType="java.lang.String" resultType="java.lang.String">
+		select t.photo from t_user_app t where t.user_id=#{currentLogonUserId}
+	</select>
+</mapper>

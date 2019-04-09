@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.BuDao">
+	
+
+	<resultMap type="BuPO" id="buMap">
+		<result property="id" column="id" />	
+		<result property="bu" column="bu" />	
+		<result property="buPhoto" column="buPhoto" />	
+		<result property="isDelete" column="isDelete" />	
+		<result property="creator" column="creator" />		
+	</resultMap>
+	
+	<!-- 查询bu名称是否被占用 ，0就是没有被占用-->
+	<select id="selectBuName" parameterType="java.lang.String" resultType="java.lang.Integer">
+	SELECT
+		COUNT(1)
+	FROM
+		`t_bu`
+	WHERE
+		isDelete=0
+		AND bu = #{bu}	 
+	</select>
+
+	<!-- 插入bu -->
+	<insert id="createBu" parameterType="com.none.web.po.BuPO" >
+	INSERT INTO t_bu 
+	VALUES
+		(
+			#{id},
+			#{bu},
+			#{buPhoto},
+			0,
+			NOW(),
+			#{creator}
+		)
+	</insert>
+
+	<select id="getBuNameAndPhotoByUserId" parameterType="java.lang.String" resultType="java.util.Map">
+		SELECT
+			bu AS displayName,
+			buPhoto AS headPortrait
+		FROM
+			t_bu 
+		WHERE
+			id = ( SELECT groupId FROM t_user WHERE user_id = #{id} )
+	</select>
+
+
+	<!-- 修改MyAccount信息 -->
+	<update id="updateBu" parameterType="com.none.web.po.BuPO">
+		UPDATE t_bu
+			<set>			
+		      <if test="bu != null and bu!=''">bu=#{bu},</if>
+		      <if test="buPhoto != null and buPhoto!=''">buPhoto=#{buPhoto},</if>
+		      <if test="isDelete != null">isDelete=#{isDelete},</if>		       
+		    </set>
+		WHERE
+			id = #{id}
+	</update>
+
+
+	<select id="selectBuByBuname" parameterType="java.lang.String" resultMap="buMap">
+		SELECT * FROM t_bu WHERE bu like CONCAT(CONCAT('%', #{name}),'%') AND isDelete = 0
+	</select>
+
+
+	<!-- 查询bu列表信息 -->
+	<select id="searchBu" parameterType="com.none.web.po.BuPO" resultMap="buMap">
+	SELECT
+		*
+	FROM
+		`t_bu`
+	WHERE
+		isDelete=0
+		<if test="bu!=null and bu != ''">AND bu like CONCAT(CONCAT('%', #{bu}),'%')</if>
+	ORDER BY
+		createTime DESC
+	LIMIT #{startPage},#{pageSize}
+		
+	</select>
+	
+	<!--查询bu总数 -->
+	<select id="searchCount" parameterType="com.none.web.po.BuPO" resultType = "java.lang.Integer">
+	SELECT
+		count(1)
+	FROM
+		`t_bu`
+	WHERE
+		isDelete=0
+		<if test="bu!=null and bu != ''">AND bu like CONCAT(CONCAT('%', #{bu}),'%')</if>
+	</select>
+	
+	<!-- 查询bu详情 -->
+	<select id="detailBu" parameterType="com.none.web.po.BuPO" resultMap="buMap">
+	SELECT
+		*
+	FROM
+		`t_bu`
+	WHERE
+		isDelete=0
+		<if test="id!=null and id != ''">AND id = #{id}</if>
+	</select>
+	
+	<!-- 查询，校验id是否存在用 -->
+	<select id="selectBuById" parameterType="java.lang.String" resultType="java.lang.Integer" >
+		SELECT
+			COUNT(id)
+		FROM
+			`t_bu`
+		WHERE
+			id = #{id}
+		AND
+			isDelete=0
+	</select>
+	
+	<!-- 查询组id下面的用户数量 -->
+	<select id="selectCountFromUserByGroupId" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT
+			count(user_id)
+		FROM
+			t_user
+		WHERE
+			groupId = #{id}
+		AND state=1
+	</select>
+</mapper>

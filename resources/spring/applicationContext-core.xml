@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:task="http://www.springframework.org/schema/task" 
+	xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/task  http://www.springframework.org/schema/task/spring-task-3.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+
+	<!-- 引入参数配置文件 -->
+	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>classpath:SystemConfig.properties</value>
+            </list>
+        </property>
+    </bean>
+    <!-- 开启AOP监听 只对当前配置文件有效 -->
+	<aop:aspectj-autoproxy expose-proxy="true" />
+	<task:annotation-driven/>
+	<!-- 扫描注解Bean -->
+	<context:component-scan base-package="com.none">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller" />
+	</context:component-scan> 
+
+	<import resource="applicationContext-servlet.xml" />
+	<import resource="applicationContext-hibernate.xml" />
+	
+<!-- 	<bean id="initDataImpl" class="com.none.web.service.shake.impl.InitDataImpl" init-method="initMethod"   /> -->
+	
+
+</beans>

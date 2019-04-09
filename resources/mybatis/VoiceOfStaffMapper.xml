@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.VoiceOfStaffDao">
+
+	<resultMap type="VoiceOfStaffPO" id="voiceOfStaffPO">
+		<id property="id" column="id" />
+		<result property="content" column="content" />
+		<result property="status" column="status" />
+		<result property="isDelete" column="is_delete" />
+		<result property="isHide" column="is_hide" />
+		<result property="subUser" column="submit_user" />
+		<result property="submitTime" column="submit_time"/>
+		<result property="lastupdateTime" column="lastupdate_time"/>
+		<result property="lastupdateUser" column="lastupdate_user"/>
+		<collection property="user" ofType="com.none.web.po.ReqVoiceListPO">
+			<result property="userName" column="user_name"/>
+			<result property="photo" column="headPortrait"/>
+		</collection>
+	</resultMap>
+	
+	<select id="selectVoiceList" parameterType="com.none.web.po.ReqVoiceListPO" resultMap="voiceOfStaffPO">
+		SELECT
+			vs.id,
+			vs.content,
+			vs.`status`,
+			vs.is_hide,
+			DATE_FORMAT( vs.lastupdate_time, '%Y-%m-%d %k:%i:%s' ) AS submit_time,
+			b.bu AS user_name,
+			b.buPhoto AS headPortrait
+		FROM
+			t_voice_of_staff vs
+			LEFT JOIN t_user tu ON vs.submit_user = tu.user_id 
+			LEFT JOIN t_bu b ON b.id = tu.groupId
+		WHERE
+			vs.is_delete = 0
+			<trim>
+				<if test="voiceId != null and voiceId != '' ">AND vs.id = #{voiceId}</if>
+				<if test="userName != null and userName != '' ">AND tu.user_name like CONCAT(CONCAT('%', #{userName}),'%')</if>
+				<if test="status != null">AND vs.`status` = #{status}</if>
+				<if test="isHide != null">AND vs.is_hide = #{isHide,jdbcType=INTEGER}</if>
+				<if test="startTime != null">AND vs.lastupdate_time &gt;= #{startTime}</if>
+				<if test="endTime != null">AND vs.lastupdate_time &lt;= #{endTime}</if>
+				<if test="pageNo != null and pageNo != '' ">
+					ORDER BY
+						vs.lastupdate_time DESC
+						LIMIT #{startPage},#{pageSize}
+				</if>
+			</trim>
+	</select>
+	
+	<select id="selectVoiceListCount" parameterType="com.none.web.po.ReqVoiceListPO" resultType="java.lang.Integer">
+		SELECT
+			count(1)
+		FROM
+			t_voice_of_staff vs
+			LEFT JOIN t_user tu ON vs.submit_user = tu.user_id WHERE vs.is_delete = 0
+			<trim>
+				<if test="voiceId != null">AND vs.id = #{voiceId}</if>
+				<if test="userName != null and userName != '' ">AND tu.user_name like CONCAT(CONCAT('%', #{userName}),'%')</if>
+				<if test="status != null">AND vs.`status` = #{status}</if>
+				<if test="isHide != null">AND vs.is_hide = #{isHide}</if>
+				<if test="startTime != null">AND vs.lastupdate_time &gt;= #{startTime}</if>
+				<if test="endTime != null">AND vs.lastupdate_time &lt;= #{endTime}</if>
+			</trim>
+	</select>
+	
+	<select id="selectCountOfVoice" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+		SELECT
+			COUNT( 1 ) 
+		FROM
+			t_voice_of_staff_comments tc
+			LEFT JOIN t_voice_of_staff tv ON tc.voice_id = tv.id 
+		WHERE
+			tc.`status` = 0 
+			AND tc.voice_id = #{voiceId}
+	</select>
+	
+	<!-- 插入VoiceOfStaff信息 ，satus为0,1注明，删除状态默认设置为0-->
+	<insert id="insertVoiceOfStaff" parameterType="com.none.web.po.VoiceOfStaffPO">
+		INSERT INTO t_voice_of_staff 
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="content != null">
+				content,
+			</if>
+			<if test="status != null">
+				status,
+			</if>
+			<if test="isDelete != null">
+				is_delete,
+			</if>
+			<if test="subUser != null">
+				submit_user,
+				submit_time,
+			</if>
+			<if test="updateUser != null">
+				lastupdate_user,
+				lastupdate_time,
+			</if>
+			<if test="isHide != null">
+				is_hide,
+			</if>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="content != null">
+				#{content},
+			</if>
+			<if test="status != null">
+				#{status},
+			</if>
+			<if test="isDelete != null">
+				#{isDelete},
+			</if>
+			<if test="subUser != null">
+				#{subUser},
+				NOW(),
+			</if>
+			<if test="updateUser != null">
+				#{updateUser},
+				NOW(),
+			</if>
+			<if test="isHide != null">
+				#{isHide},
+			</if>
+		</trim>
+	</insert>
+	
+	<!-- 修改就是根据id修改 ,修改内容和状态，是否删除，修改人，修改时间就是当前提交时间-->
+	<update id="updateVoiceById" parameterType="com.none.web.po.VoiceOfStaffPO">
+		UPDATE t_voice_of_staff
+		<set>
+			<if test="content != null">
+				content = #{content},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			<if test="isDelete != null">
+				is_delete = #{isDelete},
+			</if>
+			<if test="updateUser != null">
+				lastupdate_user = #{updateUser},
+				lastupdate_time = NOW(),
+			</if>
+			<if test="isHide != null">
+				is_hide = #{isHide},
+			</if>
+		</set>
+		WHERE id = #{id}
+	</update>
+	
+	<!-- 按照时间查询voice以及该voice的评论 -->
+	<select id="selectVoiceExcel" parameterType="java.util.Map" resultType="com.none.web.po.VoiceExcelPO">
+		SELECT
+			DATE_FORMAT(tv.submit_time,'%Y-%m-%d %k:%i:%s') AS submitTime,
+			LEFT ( tv.content, 200 ) AS topic,
+			tc.contents AS commentText,
+			DATE_FORMAT(tc.submit_time,'%Y-%m-%d %k:%i:%s') AS commentTime,
+			tua.staffId AS staffId,
+			tua.user_name AS appUserName,
+			tu.user_name AS cmsUserName
+		FROM
+			t_voice_of_staff tv
+			JOIN t_voice_of_staff_comments tc ON tv.id = tc.voice_id
+			LEFT JOIN t_user_app tua ON tua.user_id = tc.user_id
+			LEFT JOIN t_user tu ON tu.user_id = tc.user_id
+			WHERE tv.is_delete = 0 AND tc.`status` = 0 
+			AND tv.submit_time &gt;= #{startTime}
+			AND tv.submit_time &lt;= #{endTime}
+			ORDER BY
+				tv.lastupdate_time
+	</select>
+	
+	<select id="selectById"  parameterType="string" resultMap="voiceOfStaffPO">
+		SELECT * FROM t_voice_of_staff WHERE is_delete=0 and status=0 and id=#{id}
+	</select>
+	
+</mapper>

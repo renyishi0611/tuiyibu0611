@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.VoiceOfCommentDao">
+
+	<resultMap type="VoiceOfCommentPO" id="voiceOfCommentPO">
+		<id property="id" column="id" />
+		<result property="voiceId" column="voice_id"/>
+		<result property="submitTime" column="submit_time"/>
+		<result property="userId" column="user_id"/>
+		<result property="contents" column="contents"/>
+		<result property="status" column="status"/>
+		<result property="platform" column="platform"/>
+	</resultMap>
+	
+
+	
+	<!-- 查询voice的评论列表 -->
+	<select id="selectVoiceOfComList" parameterType="com.none.web.po.ReqVoiceOfComListPO" resultMap="voiceOfCommentPO">
+		SELECT
+			id,voice_id,
+			DATE_FORMAT(submit_time,'%Y-%m-%d %k:%i:%s') AS submit_time,
+			submit_time as time,
+			user_id,contents,status,platform
+		FROM
+			t_voice_of_staff_comments 
+		WHERE
+			voice_id = #{voiceId} 
+			AND `status` = 0
+		ORDER BY
+			time DESC
+			LIMIT #{startPage},#{pageSize}
+	</select>
+	
+	<!-- 查询列表总数 -->
+	<select id="selectVoiceOfComListCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT
+			count(1) 
+		FROM
+			t_voice_of_staff_comments 
+		WHERE
+			voice_id = #{voiceId} 
+			AND `status` = 0
+	</select>
+	
+	<!-- 插入voice的评论 -->
+	<insert id="insertComment" parameterType="com.none.web.po.CommentPO">
+		INSERT INTO t_voice_of_staff_comments ( voice_id, submit_time, user_id, contents, `status`, platform )
+		VALUES
+		( #{voiceId}, NOW( ), #{userId}, #{contents}, 0, #{platform} )
+	</insert>
+	
+	<!-- 根据voiceId逻辑删除其下所有评论 -->
+	<update id="delCommentByVoiceId" parameterType="java.lang.Integer">
+		UPDATE t_voice_of_staff_comments SET `status` = 1 WHERE voice_id = #{voiceId}
+	</update>
+	
+	<!-- 根据Id逻辑删除该条评论 -->
+	<update id="delCommentByComId" parameterType="java.lang.Integer">
+		UPDATE t_voice_of_staff_comments SET `status` = 1 WHERE id = #{id}
+	</update>
+</mapper>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.2.xsd">
+
+	<!-- sessionFactory -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource-druid" />
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.hbm2ddl.auto"></prop>
+				<prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate4.SpringSessionContext
+				</prop>
+				<prop key="hibernate.show_sql">false</prop>
+				<prop key="format_sql">true</prop>
+				<prop key="hibernate.default_batch_fetch_size">16</prop>
+				<prop key="hibernate.max_fetch_depth">3</prop>
+				<prop key="hibernate.query.substitutions">true 1, false 0</prop>
+			</props>
+		</property>
+		<!-- 加载hibernate的jpa注解形式的实体类 -->
+		<property name="packagesToScan">
+			<list>
+				<value>com.none.web.model*</value>
+			</list>
+		</property>
+
+		<!-- 加载Hibernate配置文件 -->
+		<property name="configLocations">
+			<value>classpath:hibernate/hibernate.cfg.xml</value>
+		</property>
+
+	</bean>
+
+	<!-- 开启注解事务 只对当前配置文件有效 -->
+	<tx:annotation-driven transaction-manager="txManager" />
+
+	<bean id="txManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+	<tx:advice id="txAdvice" transaction-manager="txManager">
+		<tx:attributes>
+			<tx:method name="save*" propagation="REQUIRED" />
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="create*" propagation="REQUIRED" />
+			<tx:method name="insert*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+			<tx:method name="edit*" propagation="REQUIRED" />
+			<tx:method name="merge*" propagation="REQUIRED" />
+			<tx:method name="del*" propagation="REQUIRED" />
+			<tx:method name="remove*" propagation="REQUIRED" />
+			<tx:method name="put*" propagation="REQUIRED" />
+			<tx:method name="assign*" propagation="REQUIRED" />
+			<tx:method name="upLoad*" propagation="REQUIRED" />
+			<tx:method name="reset*" propagation="REQUIRED" />
+			<tx:method name="audit*" propagation="REQUIRED" />
+			<tx:method name="review*" propagation="REQUIRED" />
+			<tx:method name="reject*" propagation="REQUIRED" />
+			<tx:method name="show*" propagation="REQUIRED" />
+			<tx:method name="admin*" propagation="REQUIRED" />
+			<tx:method name="join*" propagation="REQUIRED" />
+			<tx:method name="active*" propagation="REQUIRED" />
+			<tx:method name="forget*" propagation="REQUIRED" />
+			<tx:method name="change*" propagation="REQUIRED" />
+			<tx:method name="set*" propagation="REQUIRED" />
+			<tx:method name="viewBorrow*" propagation="REQUIRED" />
+			<tx:method name="import*" propagation="REQUIRED" />
+			<tx:method name="rememberMe" propagation="REQUIRED" />
+			<tx:method name="prize" propagation="REQUIRED" />
+			<!--hibernate4必须配置为开启事务 否则 getCurrentSession()获取不到 -->
+			<tx:method name="get*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="count*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="find*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="list*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="*" read-only="true" />
+		</tx:attributes>
+	</tx:advice>
+
+	<aop:config expose-proxy="true">
+		<!-- 只对业务逻辑层实施事务 -->
+		<aop:pointcut id="txPointcut"
+			expression="execution(* com.none..service..*.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut" />
+	</aop:config>
+
+
+	<import resource="applicationContext-hibernate-dataSource.xml" />
+	<!-- 本地test的启用如下配置 -->
+<!-- <import resource="../test/applicationContext-hibernate-dataSource-test.xml" />
+ -->
+</beans>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.DictionaryDao">
+
+
+	<!-- 根据type和key查询对应value -->
+	<select id="getValueByKey" parameterType="com.none.web.po.DictionaryPO" resultType="string">
+		SELECT value from t_dictionary where `keys`=#{keys} and type=#{type}
+	</select>
+	
+</mapper>

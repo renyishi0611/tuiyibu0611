@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.DepartmentDao">
+
+	<resultMap type="DepartmentPO" id="DepartmentMap">
+		<id property="id" column="id" />
+		<result property="deptName" column="dept_name" />
+		<result property="parentId" column="parent_id" />
+
+	</resultMap>
+	
+
+	<select id="selectDepartmentByName" parameterType="string" resultType="com.none.web.po.DepartmentPO">
+		
+		SELECT * FROM t_department WHERE dept_name=#{deptName}
+		
+	</select>
+	
+	<select id="saveDepartment" parameterType="com.none.web.po.DepartmentPO" resultMap="DepartmentMap">
+		
+		insert into t_department (dept_name,parent_id) values(#{deptName},#{parentId})
+		
+	</select>
+	
+	<select id="selectDepartmentIdByName" parameterType="string" resultType="int">
+		
+		SELECT id FROM t_department WHERE dept_name=#{deptName}
+		
+	</select>
+</mapper>

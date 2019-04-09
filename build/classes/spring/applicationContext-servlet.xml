@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:aop="http://www.springframework.org/schema/aop"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"	xsi:schemaLocation="http://www.springframework.org/schema/mvc  
+	 http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd 
+	 http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+
+		<!--静态资源-->
+    <mvc:resources mapping="/upload/**" location="/upload/" />
+	<!-- 开启注解 -->
+	<mvc:annotation-driven>
+		<mvc:argument-resolvers>
+			<bean class="com.none.web.UserInfoDetailHandlerxMethodArgumentResolvergc"/>
+			<bean class="spring.mvc.method.annotation.FormModelMethodArgumentResolver" />
+			<bean
+				class="spring.mvc.method.annotation.RequestJsonParamMethodArgumentResolver" />
+			<bean class="com.none.web.UserInfoDetailHandlerxMethodArgumentResolvergc" />
+			
+		</mvc:argument-resolvers>
+		<mvc:message-converters register-defaults="true">
+			<bean id="mappingJacksonHttpMessageConverter"
+				class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>application/json;charset=UTF-8</value>
+						<value>text/html;charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+			<bean
+				class="org.springframework.http.converter.ByteArrayHttpMessageConverter" />
+			<bean class="org.springframework.http.converter.StringHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/plain;charset=UTF-8</value>
+						<value>text/html;charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+
+	<context:component-scan base-package="com.none.web.controller" />
+
+	<!-- 配置拦截器 -->
+    <!--    <mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/**"/>
+            <bean class="com.none.web.AccessIntercpetor"/>        
+        </mvc:interceptor>
+       </mvc:interceptors> -->
+    
+    <bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/"></property>
+		<property name="suffix" value=".jsp"></property>
+	</bean>
+
+	<bean id="localeResolver"
+		class="org.springframework.web.servlet.i18n.SessionLocaleResolver" />
+
+	<bean id="messageSource"
+		class="org.springframework.context.support.ReloadableResourceBundleMessageSource"
+		p:fallbackToSystemLocale="true" p:useCodeAsDefaultMessage="false"
+		p:defaultEncoding="UTF-8">
+		<!-- 国际化信息所在的文件名 -->
+		<property name="basenames">
+			<list>
+				<value>classpath:local/message</value>
+				<value>classpath:whitelist</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- SpringMVC上传文件时，需要配置MultipartResolver处理器 -->
+	 <bean id="multipartResolver"
+	 	class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- class="com.none.core.common.utils.CommonsMultipartResolverExt"> -->
+		<property name="defaultEncoding" value="UTF-8" /> 
+		<!-- 指定所上传文件的总大小不能超过100MB。注意maxUploadSize属性的限制不是针对单个文件，而是所有文件的容量之和 -->
+		 <property name="maxUploadSize" value="104857600" />
+	</bean> 
+</beans>

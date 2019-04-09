@@ -1,0 +1,878 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.none.web.dao.MomentsDao">
+	<resultMap type="MomentPO" id="momentMap">
+		<result property="id" column="id" />
+		<result property="content" column="content" />
+		<result property="isDelete" column="is_delete" />
+		<result property="submitType" column="submit_type" />
+		<result property="submitUser" column="submit_user" />
+		<result property="submitTime" column="submit_time" />
+		<result property="lastUpdateUser" column="lastupdate_user" />
+		<result property="lastUpdateTime" column="lastupdate_time" />
+		<result property="approveUser" column="approve_user" />
+		<result property="approveTime" column="approve_time" />
+		<result property="title" column="title" />
+	</resultMap>
+	
+	<update id="updateMomState" parameterType="java.util.Map">
+		UPDATE t_moments SET is_delete = #{state} WHERE id = #{momId}
+	</update>
+	
+	<!-- 插入评论 -->
+	<insert id="insertComment" parameterType="com.none.web.po.CommentPO">
+		INSERT INTO t_moms_comments (  moments_id, submit_time, user_id, contents, `status`, platform )
+		VALUES
+		(  #{momentsId}, NOW( ), #{userId}, #{contents}, 0,#{platform} )
+	</insert>
+	
+	<!-- 按条件查询CA用户的cms的moment列表 -->
+	<select id="selectMomList" parameterType="java.util.Map" resultType="com.none.web.po.CMSMomentListPO">
+		SELECT
+			mom.id AS momentId,
+			mom.title as title,
+			mom.content AS momentContent,
+			DATE_FORMAT(mom.submit_time,'%Y-%m-%d %k:%i') AS submitTime,
+			mom.submit_type AS status,
+			(
+			case 
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+					(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+				else 
+					(select 
+						case 
+							when t2.nickName is not null then 
+								t2.nickName 
+							else 
+								t2.user_name 
+						end 
+					from t_user_app t2 where t2.user_id=mom.submit_user)
+			end
+			) as userName,
+			(
+			case
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+					(select t2.branch from t_user t2 where t2.user_id=mom.submit_user)
+				else
+					(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+			end
+			) AS buName
+		FROM
+			t_moments mom WHERE mom.is_delete = 0 and mom.submit_type='Publish'
+		<trim>
+			<if test="branch != null and branch != '' ">and mom.submit_user in (select t1.user_id from t_user t1 where t1.branch like CONCAT(CONCAT('%', #{branch}),'%'))</if>
+			<if test="userName != null and userName != '' ">and mom.submit_user in (select t1.user_id from t_user t1 where t1.user_name like CONCAT(CONCAT('%', #{userName}),'%'))</if>
+			<if test="type != null and type != '' ">AND mom.submit_type = #{type}</if>
+			<if test="startTime != null">AND mom.submit_time &gt;= #{startTime}</if>
+			<if test="endTime != null">AND mom.submit_time &lt;= #{endTime}</if>
+		</trim>
+		ORDER BY
+			mom.lastupdate_time DESC 
+			LIMIT #{startPage},#{pageSize}
+	</select>
+	
+	<!-- 按条件查询CA用户的cms的moment的总数 -->
+	<select id="selectMomListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+		SELECT
+			count(1)
+		FROM
+			(
+				SELECT
+					mom.id AS momentId,
+					mom.title as title,
+					mom.content AS momentContent,
+					DATE_FORMAT(mom.submit_time,'%Y-%m-%d %k:%i') AS submitTime,
+					mom.submit_type AS status,
+					(
+					case 
+						when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+							(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+						else 
+							(select 
+								case 
+									when t2.nickName is not null then 
+										t2.nickName 
+									else 
+										t2.user_name 
+								end 
+							from t_user_app t2 where t2.user_id=mom.submit_user)
+					end
+					) as userName,
+					(
+					case
+						when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+							(select t1.bu from t_bu t1 where t1.id=(select t2.groupId from t_user t2 where t2.user_id=mom.submit_user))
+						else
+							(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+					end
+					) AS buName
+				FROM
+					t_moments mom WHERE mom.is_delete = 0 and mom.submit_type='Publish'
+				<trim>
+					<if test="branch != null and branch != '' ">and mom.submit_user in (select t1.user_id from t_user t1 where t1.branch like CONCAT(CONCAT('%', #{branch}),'%'))</if>
+					<if test="userName != null and userName != '' ">and mom.submit_user in (select t1.user_id from t_user t1 where t1.user_name like CONCAT(CONCAT('%', #{userName}),'%'))</if>
+					<if test="type != null and type != '' ">AND mom.submit_type = #{type}</if>
+					<if test="startTime != null">AND mom.submit_time &gt;= #{startTime}</if>
+					<if test="endTime != null">AND mom.submit_time &lt;= #{endTime}</if>
+				</trim>
+				ORDER BY
+					mom.lastupdate_time DESC
+			) n
+	</select>
+
+	<insert id="insertMoment" parameterType="com.none.web.po.MomentPO">
+		INSERT INTO t_moments (content,is_delete,submit_type,submit_user,submit_time,lastupdate_user,lastupdate_time,title)
+		VALUES
+		(#{momentPO.content},0,#{momentPO.submitType},#{momentPO.submitUser},NOW(),#{momentPO.submitUser},NOW(),#{momentPO.title})
+		<selectKey resultType="Integer" order="AFTER" keyProperty="momentPO.id">
+			SELECT LAST_INSERT_ID() AS id
+		</selectKey>
+	</insert>
+	
+	<!-- 按条件查询CP用户的cms的moment列表 -->
+	<select id="selectCPMomList" parameterType="java.util.Map" resultType="com.none.web.po.CMSMomentListPO">
+		SELECT
+			* 
+		FROM
+			(
+		SELECT
+			mom.id AS momentId,
+			mom.title as title,
+			LEFT(mom.content,20) AS momentContent,
+			DATE_FORMAT( mom.submit_time, '%Y-%m-%d %k:%i' ) AS submitTime,
+			mom.submit_type AS status,
+			mom.lastupdate_time,
+			(
+			case 
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+					(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+				else 
+					(select 
+						case 
+							when t2.nickName is not null then 
+								t2.nickName 
+							else 
+								t2.user_name 
+						end 
+					from t_user_app t2 where t2.user_id=mom.submit_user)
+			end
+			) as userName,
+			(
+			case
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+					(select t1.bu from t_bu t1 where t1.id=(select t2.groupId from t_user t2 where t2.user_id=mom.submit_user))
+				else
+					(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+			end
+			) AS buName
+		FROM
+			t_moments mom
+		WHERE
+			mom.submit_user = #{userId}
+			AND mom.is_delete = 0
+			AND mom.submit_type='Publish' 
+		UNION
+		SELECT
+			mom.id AS momentId,
+			mom.title as title,
+			LEFT(mom.content,20) AS momentContent,
+			DATE_FORMAT( mom.submit_time, '%Y-%m-%d %k:%i' ) AS submitTime,
+			mom.submit_type AS status,
+			mom.lastupdate_time,
+			(
+			case 
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+					(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+				else 
+					(select 
+						case 
+							when t2.nickName is not null then 
+								t2.nickName 
+							else 
+								t2.user_name 
+						end 
+					from t_user_app t2 where t2.user_id=mom.submit_user)
+			end
+			) as userName,
+			(
+			case
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+					(select t1.bu from t_bu t1 where t1.id=(select t2.groupId from t_user t2 where t2.user_id=mom.submit_user))
+				else
+					(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+			end
+			) AS buName
+		FROM
+			t_moments mom
+		WHERE
+			mom.submit_user in (select t1.user_id from t_user t1 where t1.branch = #{branch}) 
+			AND mom.submit_type = 'Publish' 
+			AND mom.is_delete = 0 
+			) n WHERE 1 = 1
+		<trim>
+			<if test="userName != null and userName != '' ">AND n.userName like CONCAT(CONCAT('%', #{userName}),'%')</if>
+			<if test="type != null and type != '' ">AND n.status = #{type}</if>
+			<if test="startTime != null">AND n.submitTime &gt;= #{startTime}</if>
+			<if test="endTime != null">AND n.submitTime &lt;= #{endTime}</if>
+		</trim>
+		ORDER BY
+			n.lastupdate_time DESC 
+			LIMIT #{startPage},#{pageSize}
+	</select>
+	<!-- 按条件查询CP用户的cms的moment的总数 -->
+	<select id="selectCPMomListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+		SELECT
+			count(1)
+		FROM
+			(
+		SELECT
+			mom.id AS momentId,
+			mom.title as title,
+			LEFT(mom.content,20) AS momentContent,
+			DATE_FORMAT( mom.submit_time, '%Y-%m-%d %k:%i' ) AS submitTime,
+			mom.submit_type AS STATUS,
+			mom.lastupdate_time, 
+			(
+			case 
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+					(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+				else 
+					(select 
+						case 
+							when t2.nickName is not null then 
+								t2.nickName 
+							else 
+								t2.user_name 
+						end 
+					from t_user_app t2 where t2.user_id=mom.submit_user)
+			end
+			) as userName,
+			(
+			case
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+					(select t1.bu from t_bu t1 where t1.id=(select t2.groupId from t_user t2 where t2.user_id=mom.submit_user))
+				else
+					(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+			end
+			) AS buName 
+		FROM
+			t_moments mom
+		WHERE
+			mom.submit_user = #{userId}
+			AND mom.is_delete = 0 
+			and mom.submit_type = 'Publish'
+		UNION
+		SELECT
+			mom.id AS momentId,
+			mom.title as title,
+			LEFT(mom.content,20) AS momentContent,
+			DATE_FORMAT( mom.submit_time, '%Y-%m-%d %k:%i' ) AS submitTime,
+			mom.submit_type AS STATUS,
+			mom.lastupdate_time, 
+			(
+			case 
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then 
+					(select t1.user_name from t_user t1 where t1.user_id=mom.submit_user) 
+				else 
+					(select 
+						case 
+							when t2.nickName is not null then 
+								t2.nickName 
+							else 
+								t2.user_name 
+						end 
+					from t_user_app t2 where t2.user_id=mom.submit_user)
+			end
+			) as userName,
+			(
+			case
+				when (select count(1) from t_user_app t where t.user_id=mom.submit_user) = 0 then
+					(select t1.bu from t_bu t1 where t1.id=(select t2.groupId from t_user t2 where t2.user_id=mom.submit_user))
+				else
+					(select t1.branch from t_user_app t1 where t1.user_id=mom.submit_user)
+			end
+			) AS buName
+		FROM
+			t_moments mom
+		WHERE
+			mom.submit_user in (select t1.user_id from t_user t1 where t1.branch = #{branch})
+			AND mom.submit_type = 'Publish' 
+			AND mom.is_delete = 0 
+			) n WHERE 1 = 1
+		<trim>
+			<if test="userName != null and userName != '' ">AND n.userName like CONCAT(CONCAT('%', #{userName}),'%')</if>
+			<if test="type != null and type != '' ">AND n.status = #{type}</if>
+			<if test="startTime != null">AND n.submitTime &gt;= #{startTime}</if>
+			<if test="endTime != null">AND n.submitTime &lt;= #{endTime}</if>
+		</trim>
+	</select>
+	
+	<update id="updateMoment" parameterType="com.none.web.po.MomentPO">
+		UPDATE t_moments SET lastupdate_user=#{submitUser},lastupdate_time=NOW(),
+		content=#{content},submit_type=#{submitType},title=#{title} WHERE id=#{id}
+	</update>
+	
+	<update id="deleteMomentById" parameterType="java.util.Map">
+		UPDATE t_moments SET is_delete=1,lastupdate_time=NOW() WHERE id=#{id}
+	</update>
+	
+	
+	<resultMap type="MomentDetailPO" id="momentDetailMap">
+		<result property="id" column="id" />
+		<result property="title" column="title" />
+		<result property="content" column="content" />
+		<result property="commentsNum" column="comments_num" />
+		<result property="likesNum" column="likes_num" />
+		<result property="likesStatus" column="likes_status" />
+		<result property="collectionNum" column="collection_num" />
+		<result property="collectionStatus" column="collection_status" />
+		<result property="submitType" column="submit_type" />
+		<result property="submitUser" column="submit_user" />
+		<result property="headPortrait" column="head_portrait" />
+		<result property="submitTime" column="submit_time" />
+	</resultMap>
+	<select id="selectMomentById" parameterType="java.util.Map" resultMap="momentDetailMap">
+		SELECT 
+			tm.id,
+			tm.title,
+			tm.content,
+			(select count(1) from t_moms_comments where moments_id=tm.id) as comments_num,
+			(select count(1) from t_moms_likes where moments_id=tm.id and `status` = 0) as likes_num,
+			(case when (select count(1)  from t_moms_likes where moments_id=tm.id and user_id=#{submitUser}) = 0 then 1 else (select `status`  from t_moms_likes where moments_id=tm.id and user_id=#{submitUser}) end) as likes_status,
+			(select count(1) from t_moms_collections where moment_id=tm.id and `status` = 0) as collection_num,
+			(case when (select count(1) from t_moms_collections where moment_id=tm.id and user_id=#{submitUser}) = 0 then 1 else (select `status` from t_moms_collections where moment_id=tm.id and user_id=#{submitUser}) end) as collection_status,
+			tm.submit_type,
+			(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+			(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS head_portrait,
+			DATE_FORMAT(tm.submit_time, '%Y-%m-%d %k:%i:%s') AS submit_time 
+			FROM t_moments as tm WHERE tm.is_delete=0 and tm.submit_type='Publish' and tm.id=#{id}
+	</select>
+	
+	<select id="selectById" parameterType="string" resultMap="momentMap">
+		SELECT * FROM t_moments WHERE is_delete=0 and id=#{id}
+	</select>	
+	<!-- 查询moms导出excel所需的数据 -->
+	<select id="selectMomsExcel" parameterType="java.util.Map" resultType="com.none.web.po.MomsExcelPO">
+		SELECT
+			n.*,
+			tml.user_id AS isLike,
+			DATE_FORMAT( tml.like_time, '%Y-%m-%d %k:%i:%s' ) AS likeTime
+		FROM
+			(
+		SELECT
+			m.id AS id,
+			m.content AS momentContent,
+			m.lastupdate_time AS lastupdateTime,
+			tua.user_id AS userId,
+			tua.staffId AS staffId,
+			tua.user_name AS userName,
+			tu.user_name AS cmsUserName,
+			mc.contents AS commentContent,
+			DATE_FORMAT( mc.submit_time, '%Y-%m-%d %k:%i:%s' ) AS commentTime 
+		FROM
+			t_moms_comments mc
+			JOIN t_moments m ON mc.moments_id = m.id
+			LEFT JOIN t_user_app tua ON mc.user_id = tua.user_id 
+			LEFT JOIN t_user tu ON mc.user_id = tu.user_id
+		WHERE
+			m.is_delete = 0
+			AND m.submit_time &gt;= #{startTime}
+			AND m.submit_time &lt;= #{endTime}
+			) n
+			LEFT JOIN t_moms_likes tml ON n.id = tml.moments_id AND n.userId = tml.user_id
+			AND tml.`status` = 0 
+		ORDER BY
+			n.lastupdateTime
+	</select>
+	<!-- APP端的查询moments列表，和查询moments列表总数 -->
+	<resultMap type="MomentPO" id="appMomsMomentsMap">
+		<id property="id" column="id" />
+		<result property="submitTime" column="submit_time" />
+		<result property="title" column="title" />
+		<result property="content" column="content" />
+		<result property="submitUser" column="submit_user" />
+		<result property="status" column="status" />
+		<result property="type" column="type" />
+		<result property="displayPhoto" column="display_photo" />
+	</resultMap>
+	<!-- moments APP -->
+	<!-- 查询moments，倒序，五条分页显示 -->
+	<select id="selectAppMomentsDESC" parameterType="com.none.core.model.Pager" resultMap="appMomsMomentsMap">
+		SELECT
+			tm.id,
+			tm.title,
+			tm.content,
+			tm.is_delete,
+			(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+			tm.submit_type,
+			tm.submit_time,
+			tm.lastupdate_time,
+			tm.lastupdate_user,
+			(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo 
+		FROM
+			t_moments tm
+		WHERE
+			tm.is_delete = 0
+		AND tm.submit_type = 'Publish'
+		ORDER BY
+			tm.top DESC,tm.lastupdate_time DESC
+			LIMIT #{startRow},#{pageSize}
+	</select>
+	<!-- 查询moments已经发布并且没有删除的总记录数 -->
+	<select id="searchTotalCount" parameterType="com.none.core.model.Pager" resultType="java.lang.Integer">
+		SELECT
+			COUNT(1)
+		FROM
+			(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo 
+				FROM
+					t_moments tm
+				WHERE
+					tm.is_delete = 0
+				AND tm.submit_type = 'Publish'
+				ORDER BY
+					tm.lastupdate_time DESC
+			) n
+	</select>
+	
+	<select id="selectMyAppMomentsDESC" parameterType="com.none.core.model.Pager" resultMap="appMomsMomentsMap">
+		SELECT
+				tm.id,
+				tm.title,
+				tm.content,
+				tm.is_delete,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = #{logonUserId}) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = #{logonUserId})) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = #{logonUserId}) END) AS submit_user,
+				tm.submit_type,
+				tm.submit_time,
+				tm.lastupdate_time,
+				tm.lastupdate_user,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = #{logonUserId}) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = #{logonUserId})) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = #{logonUserId}) END) AS display_photo 
+			FROM
+				t_moments tm
+			WHERE
+				tm.is_delete = 0
+			AND tm.submit_type = 'Publish'
+			AND tm.submit_user = #{logonUserId}
+			ORDER BY
+				tm.lastupdate_time DESC
+				LIMIT #{startRow},#{pageSize}
+	</select>
+	<select id="getMyMomentTotalCount" parameterType="com.none.core.model.Pager" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(1) 
+		FROM (
+			SELECT
+				tm.id,
+				tm.title,
+				tm.content,
+				tm.is_delete,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = #{logonUserId}) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = #{logonUserId})) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = #{logonUserId}) END) AS submit_user,
+				tm.submit_type,
+				tm.submit_time,
+				tm.lastupdate_time,
+				tm.lastupdate_user,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = #{logonUserId}) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = #{logonUserId})) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = #{logonUserId}) END) AS display_photo 
+			FROM
+				t_moments tm
+			WHERE
+				tm.is_delete = 0
+			AND tm.submit_type = 'Publish'
+			AND tm.submit_user = #{logonUserId}
+			ORDER BY
+				tm.lastupdate_time DESC
+		) n
+	</select>
+	
+	<select id="selectMyCollectionMomentsDESC" parameterType="com.none.core.model.Pager" resultMap="appMomsMomentsMap">
+		SELECT
+				tm.id,
+				tm.title,
+				tm.content,
+				tm.is_delete,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+				tm.submit_type,
+				tm.submit_time,
+				tm.lastupdate_time,
+				tm.lastupdate_user,
+				(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo
+			FROM
+				t_moments tm
+			WHERE
+				tm.is_delete = 0
+			AND tm.submit_type = 'Publish'
+			AND tm.id in (
+				select tc.moment_id 
+				from t_moms_collections tc
+				where tc.status=0 AND tc.user_id=#{logonUserId}
+			)
+			ORDER BY
+				tm.lastupdate_time DESC
+				LIMIT #{startRow},#{pageSize}
+	</select>
+	<select id="selectMyCollectionMomentsCount" parameterType="com.none.core.model.Pager" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(1)
+		FROM 
+			(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo
+				FROM
+					t_moments tm
+				WHERE
+					tm.is_delete = 0
+				AND tm.submit_type = 'Publish'
+				AND tm.id in (
+					select tc.moment_id 
+					from t_moms_collections tc
+					where tc.status=0 AND tc.user_id=#{logonUserId}
+				)
+				ORDER BY
+					tm.lastupdate_time DESC
+			) n
+	</select>
+	
+	<select id="searchUserIdById" parameterType="java.lang.Integer" resultType="string">
+		SELECT
+			submit_user
+		FROM
+			t_moments
+		WHERE
+			id = #{id}
+	</select>
+	<select id="selectLotteryMomentsDESC" parameterType="com.none.core.model.Pager"	resultMap="appMomsMomentsMap">
+		SELECT
+			n.* 
+		FROM
+			(
+				(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo
+				FROM
+					t_moments tm
+				WHERE tm.is_delete = '0'
+				AND tm.submit_type = 'Publish' 
+				ORDER BY
+					tm.submit_time DESC 
+					LIMIT 0,1 
+				) UNION
+				(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo 
+				FROM
+					t_moments tm 
+				WHERE tm.is_delete = '0' 
+				AND tm.submit_type = 'Publish' 
+				ORDER BY
+					tm.submit_time DESC 
+					LIMIT 99,1 
+				) UNION
+				(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo  
+				FROM
+					t_moments tm 
+				WHERE tm.is_delete = '0' 
+				AND tm.submit_type = 'Publish' 
+				ORDER BY
+					tm.submit_time DESC 
+					LIMIT 199,1 
+				) UNION
+				(
+				SELECT
+					tm.id,
+					tm.title,
+					tm.content,
+					tm.is_delete,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+					tm.submit_type,
+					tm.submit_time,
+					tm.lastupdate_time,
+					tm.lastupdate_user,
+					(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo  
+				FROM
+					t_moments tm 
+				WHERE tm.is_delete = '0' 
+				AND tm.submit_type = 'Publish' 
+				ORDER BY
+					tm.submit_time DESC 
+					LIMIT 499,1 
+				) 
+			) n LIMIT #{startRow},#{pageSize}
+	</select>
+	<select id="selectLotteryMomentCount" parameterType="com.none.core.model.Pager" resultType="java.lang.Integer">
+		select
+			COUNT(1)
+		FROM
+			(
+				SELECT
+					n.* 
+				FROM
+					(
+						(
+						SELECT
+							tm.id,
+							tm.title,
+							tm.content,
+							tm.is_delete,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+							tm.submit_type,
+							tm.submit_time,
+							tm.lastupdate_time,
+							tm.lastupdate_user,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo
+						FROM
+							t_moments tm
+						WHERE tm.is_delete = '0'
+						AND tm.submit_type = 'Publish' 
+						ORDER BY
+							tm.submit_time DESC 
+							LIMIT 0,1 
+						) UNION
+						(
+						SELECT
+							tm.id,
+							tm.title,
+							tm.content,
+							tm.is_delete,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+							tm.submit_type,
+							tm.submit_time,
+							tm.lastupdate_time,
+							tm.lastupdate_user,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo 
+						FROM
+							t_moments tm 
+						WHERE tm.is_delete = '0' 
+						AND tm.submit_type = 'Publish' 
+						ORDER BY
+							tm.submit_time DESC 
+							LIMIT 99,1 
+						) UNION
+						(
+						SELECT
+							tm.id,
+							tm.title,
+							tm.content,
+							tm.is_delete,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+							tm.submit_type,
+							tm.submit_time,
+							tm.lastupdate_time,
+							tm.lastupdate_user,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo  
+						FROM
+							t_moments tm 
+						WHERE tm.is_delete = '0' 
+						AND tm.submit_type = 'Publish' 
+						ORDER BY
+							tm.submit_time DESC 
+							LIMIT 199,1 
+						) UNION
+						(
+						SELECT
+							tm.id,
+							tm.title,
+							tm.content,
+							tm.is_delete,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.bu FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE (SELECT CASE WHEN app.nickName IS NOT NULL THEN app.nickName ELSE app.user_name END FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS submit_user,
+							tm.submit_type,
+							tm.submit_time,
+							tm.lastupdate_time,
+							tm.lastupdate_user,
+							(CASE WHEN (SELECT count( 1 ) FROM t_user_app app WHERE app.user_id = tm.submit_user) = 0 then (SELECT bu.buPhoto FROM t_bu bu WHERE bu.id = (SELECT cms.groupId FROM t_user cms WHERE cms.user_id = tm.submit_user)) ELSE ( SELECT app.photo FROM t_user_app app WHERE app.user_id = tm.submit_user) END) AS display_photo  
+						FROM
+							t_moments tm 
+						WHERE tm.is_delete = '0' 
+						AND tm.submit_type = 'Publish' 
+						ORDER BY
+							tm.submit_time DESC 
+							LIMIT 499,1 
+						) 
+					) n
+			) a
+	</select>
+
+	<select id="selectTopThreeUserinfoDESC" resultType="com.none.web.po.UserAppPO">
+		SELECT
+			n.photo,
+			n.nickName
+		FROM
+			(
+				SELECT
+					a.photo,
+					a.user_name AS nickName,
+					(
+						(
+							SELECT
+								COUNT(1)
+							FROM
+								t_moms_comments
+							WHERE
+								moments_id = m.id
+							AND `status` = 0
+						) * 3 + (
+							SELECT
+								count(1)
+							FROM
+								t_moms_likes
+							WHERE
+								moments_id = m.id
+							AND `status` = 0
+						) + (
+							SELECT
+								count(1)
+							FROM
+								t_moms_collections
+							WHERE
+								moment_id = m.id
+							AND `status` = 0
+						) * 2
+					) AS hotNum
+				FROM
+					t_moments m
+				RIGHT JOIN t_user_app a ON m.submit_user = a.user_id
+				WHERE
+					m.is_delete = 0
+				AND m.submit_type = 'Publish'
+			) n
+		ORDER BY
+			n.hotNum DESC
+		LIMIT 0,3
+	</select> 
+	
+	<select id="selectStaffList" resultType="java.lang.String">
+		SELECT
+			n.staffId
+		FROM
+			(
+				SELECT
+					a.staffId,
+					(
+						(
+							SELECT
+								COUNT(1)
+							FROM
+								t_moms_comments
+							WHERE
+								moments_id = m.id
+							AND `status` = 0
+						) * 3 + (
+							SELECT
+								count(1)
+							FROM
+								t_moms_likes
+							WHERE
+								moments_id = m.id
+							AND `status` = 0
+						) + (
+							SELECT
+								count(1)
+							FROM
+								t_moms_collections
+							WHERE
+								moment_id = m.id
+							AND `status` = 0
+						) * 2
+					) AS hotNum
+				FROM
+					t_moments m
+				RIGHT JOIN t_user_app a ON m.submit_user = a.user_id
+				WHERE
+					m.is_delete = 0
+				AND m.submit_type = 'Publish'
+			) n
+		ORDER BY
+			n.hotNum DESC
+		LIMIT 0,3
+	</select>
+	
+	<select id="selectThunderUserInfo" resultType="com.none.web.po.UserAppPO">
+		SELECT
+			photo AS photo,
+			user_name AS nickName
+		FROM
+			t_user_app
+		WHERE
+			staffId IN (
+				SELECT
+					staffId
+				FROM
+					t_prizepeo
+				WHERE
+					activeId = 'thunder'
+			)
+	</select>
+
+	<select id="getMomentTotalCount" resultType="java.lang.Integer">
+		select count(1) from t_moments where is_delete = 0 and submit_type='Publish' and submit_user in (select user_id from t_user_app)
+	</select>
+	<select id="selectCurrentUserMomentCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+		select count(1) from t_moments where submit_type='Publish' 
+		and date_format(submit_time,'%Y-%m-%d')=date_format(now(),'%Y-%m-%d')
+		and submit_user = (select user_id from t_user_app where user_id=#{logonUserId})
+	</select>
+	<select id="getMyPrizeByUserId" parameterType="java.lang.String" resultType="com.none.web.po.PrizepeoPO">
+		select 
+			activeId,
+			staffId,
+			prizeLevel,
+			bu
+		from
+			t_prizepeo
+		where staffId = (select staffId from t_user_app where user_id=#{logonUserId})
+	</select>
+	<select id="selectPrizeCountByUserId" parameterType="java.lang.String" resultType="java.lang.Integer">
+		select 
+			count(1)
+		from
+			t_prizepeo
+		where staffId = (select staffId from t_user_app where user_id=#{logonUserId})
+	</select>
+</mapper>

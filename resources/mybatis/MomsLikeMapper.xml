@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.none.web.dao.MomsLikeDao">
+	<!-- resultMap的id就是select的resultMap的值 -->
+	<resultMap type="MomsLikePO" id="momsLikeMap">
+		<id property="id" column="id" />
+		<result property="momentsId" column="moments_id" />
+		<result property="userId" column="user_id" />
+		<result property="likeTime" column="like_time" />
+		<result property="status" column="status" />
+	</resultMap>	
+	
+	<!-- 查询该moments_id下面共有多少点赞 -->
+	<select id="selectLikeCountByMomentsId" parameterType="java.lang.Integer"
+		resultType="integer">
+		SELECT
+			count(*)
+		FROM
+			t_moms_likes
+		WHERE
+			moments_id = #{appmomentsId}
+		AND `status` = 0
+	</select>
+	
+	<update id="deleteLikeByMomentsId" parameterType="java.lang.Integer">
+		update t_moms_likes set `status` = 1,like_time=now() where moments_id=#{momentsId}
+	</update>
+
+	<!-- APP端查询当前用户在该moments点赞状态，0:点赞，1：取消点赞，null：没有点赞记录 ===-->
+	<select id="selectIsLikeForMoments" resultType="java.lang.Integer">
+		SELECT
+			`status`
+		FROM
+			t_moms_likes
+		WHERE
+			user_id = #{userId}
+		AND moments_id = #{momentsId}
+	</select>
+	
+	<!-- 插入一条点赞记录，默认是点赞状态，就是0 ====-->
+	<insert id="insertLikeRecord" parameterType="com.none.web.po.MomsLikePO">
+	INSERT INTO t_moms_likes (
+		moments_id,
+		user_id,
+		like_time,
+		STATUS
+	)
+	VALUE
+		(#{momentsId}, #{userId}, NOW(), 0)
+	</insert>
+	
+	<!-- 更新数点赞状态，0：点赞，1：取消点赞 ====-->
+	<update id="updateActiveStatus" parameterType="com.none.web.po.MomsLikePO">
+		update 
+			t_moms_likes 
+		SET
+			like_time=now(),
+			status=#{status}
+       WHERE
+       		moments_id=#{momentsId}
+       AND
+       		user_id=#{userId}
+	</update>
+	
+	<!-- 查询点赞状态 :0是点赞，1是取消点赞，null是没有记录-->
+	<select id="selectLikeStatus" parameterType = "com.none.web.po.MomsLikePO" resultType="java.lang.Integer">
+		SELECT
+			`status`
+		FROM
+			t_moms_likes
+		WHERE
+			user_id = #{userId}
+		AND moments_id = #{momentsId}
+	</select>
+	
+	<!-- 查询该人是否对该条文章收藏过 -->
+	<select id="selectIsCollection" parameterType="java.util.Map" resultType="com.none.web.po.MomentCollectionPO">
+		SELECT
+			id,
+			moment_id AS momentId,
+			user_id AS collectionUserId,
+			collect_time AS collectionTime,
+			`status` 
+		FROM
+			t_moms_collections 
+		WHERE user_id = #{collectionUserId} AND moment_id = #{momentId}
+	</select>
+	
+	<!-- 收藏文章 -->
+	<insert id="insertCollection" parameterType="com.none.web.po.MomentCollectionPO">
+		INSERT INTO t_moms_collections ( moment_id, user_id, collect_time, `status` )
+		VALUES
+			( #{momentId}, #{collectionUserId}, NOW( ), 0 )
+	</insert>
+	
+	<!-- 修改收藏状态 -->
+	<update id="updateCollection" parameterType="com.none.web.po.MomentCollectionPO">
+		UPDATE t_moms_collections
+		<set>
+			<if test="status != null">
+				`status` = #{status},
+			</if>
+			<if test="collectionTime != null">
+				collect_time = #{collectionTime},
+			</if>
+		</set>
+		WHERE user_id = #{collectionUserId} AND moment_id = #{momentId}
+	</update>
+	
+	<select id="selectCountOfColl" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+		select count(1) from t_moms_collections where moment_id = #{momentId} and `status` = 0
+	</select>
+	
+	<select id="selectStatusOfColl" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select `status` from t_moms_collections where moment_id = #{momentId} and user_id = #{userId}
+	</select>
+	
+	<select id="selectCurrentCollNum" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select count(1) from t_moms_collections where moment_id = #{momentId} and user_id = #{userId} and `status` = 0
+	</select> 
+	
+	<update id="deleteCollectionByMomId" parameterType="com.none.web.po.MomentCollectionPO">
+		UPDATE t_moms_collections set `status` = 1 WHERE moment_id = #{momentId}
+	</update>
+</mapper>

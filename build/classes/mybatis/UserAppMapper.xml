@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.UserAppDao">
+	
+
+	<resultMap type="UserAppPO" id="userAppMap">
+		<id property="userId" column="user_id" />
+		<result property="userName" column="user_name" />
+		<result property="userUDID" column="user_UDID" />
+		<result property="activationTime" column="activation_time" />
+		<result property="createTime" column="create_time" />
+		<result property="lastVisitTime" column="last_visit_time"/>   
+		<result property="firstLoginTime" column="first_login_time"/>
+		<result property="deptId" column="dept_id" />
+		<result property="englishName" column="english_name" />
+		<result property="chineseName" column="chinese_name"/>   
+		<result property="idCard" column="i_d_card"/>
+		<result property="isDelete" column="is_delete"/>
+	</resultMap>
+	
+	
+	
+	<!-- 按照条件查询userapp -->
+	<select id="selectUserAppList" parameterType="java.util.Map" resultType="com.none.web.po.UserAppPO">
+		SELECT
+			n.* 
+		FROM
+			(
+		SELECT
+			tw.staffId AS staffId,
+			tu.user_name AS userName,
+			DATE_FORMAT( tu.last_visit_time, '%Y-%m-%d %k:%i:%s' ) AS lastVisitTime,
+			DATE_FORMAT( tu.activation_time, '%Y-%m-%d %k:%i:%s' ) AS activationTime,
+			tu.`status` AS `status` 
+		FROM
+			t_whiteList tw
+			LEFT JOIN t_user_app tu ON tw.staffId = tu.staffId 
+		WHERE
+			tw.is_delete = 0 
+			) n 
+		WHERE 1 = 1
+			<trim>
+				<if test="status != null and status == 1 "> AND n.`status` = #{status}</if>
+			</trim>
+			<trim>
+				<if test="status != null and status == 0 "> AND n.`status` = #{status} OR n.`status` IS NULL</if>
+			</trim>
+		ORDER BY
+			n.`status` DESC
+			LIMIT #{startPage},#{pageSize}
+	</select>
+	
+	<!-- 按照条件查询userapp的总数 -->
+	<select id="selectUserAppListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+		SELECT
+			COUNT(1)
+		FROM
+			(
+		SELECT
+			tw.staffId AS staffId,
+			tu.user_name AS userName,
+			DATE_FORMAT( tu.last_visit_time, '%Y-%m-%d %k:%i:%s' ) AS lastVisitTime,
+			DATE_FORMAT( tu.activation_time, '%Y-%m-%d %k:%i:%s' ) AS activationTime,
+			tu.`status` AS `status` 
+		FROM
+			t_whiteList tw
+			LEFT JOIN t_user_app tu ON tw.staffId = tu.staffId 
+		WHERE
+			tw.is_delete = 0 
+			) n 
+		WHERE 1 = 1 
+			<trim>
+				<if test="status != null and status == 1 "> AND n.`status` = #{status}</if>
+			</trim>
+			<trim>
+				<if test="status != null and status == 0 "> AND n.`status` = #{status} OR n.`status` IS NULL</if>
+			</trim>
+	</select>
+
+
+	<select id="selectUserAppById" parameterType="java.lang.String" resultMap="userAppMap" >
+		select * from t_user_app where user_id= #{userId} and is_delete = 0 AND status=1
+	</select>
+	
+	<select id="selectUserById" parameterType="java.lang.String" resultType="com.none.web.po.UserAppPO">
+		select * from t_user where user_id= #{userId}
+	</select>
+	
+	<!-- 查询在职员工的staffId -->
+	<select id="selectStaffIds" resultType="java.lang.String">
+		SELECT
+			tw.staffId 
+		FROM
+			t_whitelist tw
+			LEFT JOIN t_user_app tu ON tw.staffId = tu.staffId 
+		WHERE
+			tw.is_delete = 0
+	</select>
+	
+	<!-- 批量插入白名单 -->
+	<insert id="insertWhiteList" parameterType="java.util.List">
+		INSERT INTO t_whitelist (staffId,create_time,create_user,is_delete) VALUES
+		<foreach collection="list" item="item" index="index" separator=",">	
+			(#{item.staffId},
+			NOW(),
+			#{item.createUser},
+			0)
+		</foreach>
+	</insert>
+	
+	<!-- 修改白名单状态 -->
+	<update id="updateWhieListStatus" parameterType="java.util.List">
+		UPDATE t_whitelist SET is_delete = 1 WHERE staffId in
+		<foreach collection="list" index="index" item="item" 
+	        separator="," open="(" close=")">
+	        #{item.staffId}
+    	</foreach>
+	</update>
+	
+	<!-- 修改appuser状态 -->
+	<update id="updateUserAppStatus" parameterType="java.util.List">
+		UPDATE t_user_app SET is_delete = 1 WHERE staffId in
+		<foreach collection="list" index="index" item="item" 
+	        separator="," open="(" close=")">
+	        #{item.staffId}
+    	</foreach>
+	</update>
+
+
+	<select id="getUserInfoByUDID"  resultMap="userAppMap" >
+		select * from t_user_app where user_UDID= #{udid} and is_delete = 0
+	</select>
+
+
+	<select id="selectUser" resultMap="userAppMap" >
+		select * from t_user_app where user_id= #{userId} and user_UDID=#{userUDID} and is_delete = 0
+	</select>
+
+	<update id="update" >
+	    update t_user_app
+	    <set>
+	      <if test="accept != null and accept != '' " >
+	        accept = #{accept},
+	      </if>
+	    </set>
+		where user_id=#{userId}
+	</update>
+	
+	<!-- 修改MyAccount信息 -->
+	<update id="updateMyAccount" parameterType="com.none.web.po.UserAppPO">
+		UPDATE t_user_app
+			<set>			
+		      <if test="userName != null and userName!=''">user_name=#{userName},</if>
+		      <if test="staffId != null and staffId!=''">staffId=#{staffId},</if>
+		      <if test="userUDID != null and userUDID!=''">user_UDID=#{userUDID},</if>		      
+		      <if test="createTime != null and createTime!=''">create_time=#{createTime},</if>
+		      <if test="lastVisitTime != null and lastVisitTime!=''">last_visit_time=#{lastVisitTime},</if>
+		      <if test="firstLoginTime != null and firstLoginTime!=''">first_login_time=#{firstLoginTime},</if>
+		      <if test="activationTime != null and activationTime!=''">activation_time=#{activationTime},</if>
+		      <if test="branch != null and branch!=''">branch=#{branch},</if>
+		      <if test="deptId != null and deptId!='' or deptId==0">dept_id=#{deptId},</if>
+		      <if test="position != null and position!=''">position=#{position},</if>
+		      <if test="englishName != null and englishName!=''">english_name=#{englishName},</if>		      
+		      <if test="chineseName != null and chineseName!=''">chinese_name=#{chineseName},</if>
+		      <if test="qrcode != null and qrcode!=''">qrcode=#{qrcode},</if>
+		      <if test="photo != null and photo!='' ">photo=#{photo},</if>
+		      <if test="telephone != null and telephone!=''">telephone=#{telephone},</if>		      
+		      <if test="email != null and email!=''">email=#{email},</if>
+		      <if test="gender != null and gender!=''">gender=#{gender},</if>		      
+		      <if test="idCard != null and idCard!=''">i_d_card=#{idCard}</if> 
+		      <if test="nickName != null and nickName!=''">nickName=#{nickName}</if> 
+		    </set>
+		WHERE
+			user_id = #{userId}	
+		AND
+			is_delete=0
+		AND 
+			status=1
+	</update>
+	
+	
+	<select id="selectUserCountByUserId" parameterType="java.lang.String" resultType="java.lang.Integer">
+		select count(1) from t_user_app where user_id=#{userId} and is_delete=0 and status=1
+	</select>
+	
+	<select id="selectStaffIdByUserId" parameterType="java.lang.String" resultType="java.lang.String">
+		select staffId from t_user_app where user_id=#{logonUserId} and is_delete=0 and status=1
+	</select>
+	
+	<insert id="insertPrize" parameterType="com.none.web.po.PrizepeoPO">
+		insert into t_prizepeo (id,activeId,staffId,prizeLevel,bu) 
+		values(#{id},#{activeId},#{staffId},#{prizeLevel},#{bu})
+	</insert>
+	
+	<!-- 根据staffid查询user信息 -->
+	<select id="selectUserInfoByStaffId" parameterType="java.lang.String" resultMap="userAppMap">
+		SELECT * FROM t_user_app WHERE staffId = #{staffId} AND `status` = 1 AND is_delete = 0
+	</select>
+	
+	<select id="selectPrizeUserByMomentId" parameterType="java.lang.Integer" resultType="java.lang.Integer">
+		SELECT
+			count(1)
+		FROM
+			t_prizepeo
+		WHERE
+			activeId IN ('thunder','top3')
+		AND	staffId = (
+				SELECT
+					staffId
+				FROM
+					t_user_app
+				WHERE
+					user_id = (
+						SELECT
+							submit_user
+						FROM
+							t_moments
+						WHERE id = #{momentId}
+					)
+			)
+	</select>
+	
+	<delete id="deletePrizeUserByMomentId" parameterType="java.lang.Integer">
+		DELETE from t_prizepeo 
+		WHERE
+			activeId IN ('thunder','top3')
+		AND staffId = (
+			SELECT
+					staffId
+				FROM
+					t_user_app
+				WHERE
+					user_id = (
+						SELECT
+							submit_user
+						FROM
+							t_moments
+						WHERE id = #{momentId}
+					)
+		)
+	</delete>
+	
+	<select id="selectTopThreePrizePeople" resultType="com.none.web.po.UserAppPO">
+		select 
+			t.photo as photo,
+			t.user_name as nickName
+		from t_user_app t where t.staffId in (select staffId from t_prizepeo where activeId='top3' and prizeLevel = 1)
+		union
+		select 
+			t.photo as photo,
+			t.user_name as nickName
+		from t_user_app t where t.staffId in (select staffId from t_prizepeo where activeId='top3' and prizeLevel = 2)
+		union
+		select 
+			t.photo as photo,
+			t.user_name as nickName
+		from t_user_app t where t.staffId in (select staffId from t_prizepeo where activeId='top3' and prizeLevel = 3)
+	</select>
+	
+	<delete id="deleteTop3PrizePeoples">
+		delete from t_prizepeo where activeId='top3'
+	</delete>
+	
+	<!-- 第一次插入用户信息 -->
+	<insert id="insertUserInfo" parameterType="com.none.web.po.UserAppPO" keyProperty="id">
+		INSERT INTO t_user_app
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="userId != null">
+				user_id,
+			</if>
+			<if test="userName != null">
+				user_name,
+			</if>
+			<if test="staffId != null">
+				staffId,
+			</if>
+			<if test="password != null">
+				password,
+			</if>
+			<if test="photo != null">
+				photo,
+			</if>
+			<if test="nickName != null">
+				nickName,
+			</if>
+			<if test="branch != null">
+				branch,
+			</if>
+			create_time,
+			is_delete,
+			`status`,
+			lotteryNum
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="userId != null">
+				#{userId},
+			</if>
+			<if test="userName != null">
+				#{userName},
+			</if>
+			<if test="staffId != null">
+				#{staffId},
+			</if>
+			<if test="password != null">
+				#{password},
+			</if>
+			<if test="photo != null">
+				#{photo},
+			</if>
+			<if test="nickName != null">
+				#{nickName},
+			</if>
+			<if test="branch != null">
+				#{branch},
+			</if>
+			NOW(),
+			0,
+			1,
+			0
+		</trim>
+	</insert>
+	
+	<update id="udateLotteryNum" parameterType="com.none.web.po.LotteryPO">
+		UPDATE t_user_app SET lotteryNum = lotteryNum + #{lotteryNum} WHERE staffId = #{staffId}
+	</update>
+	
+	<!-- 查询抽奖排行 -->
+	<select id="selectRankingList" resultType="java.util.Map">
+		SELECT staffId, lotteryNum FROM t_user_app ORDER BY lotteryNum DESC LIMIT 20
+	</select>
+	
+	<!-- 更改抽奖状态和中奖人数 -->
+	<update id="updateActiveStaus" parameterType="com.none.web.po.ControlActivePO">
+		UPDATE t_active_status
+		<set>
+			<if test="status != null and status != ''">
+				`status` = #{status},
+			</if>
+			<if test="peoNum != null">
+				peoNum = #{peoNum},
+			</if>
+		</set>
+		WHERE id = #{id} AND bu = #{bu}
+	</update>
+	<!-- 插入中奖人 -->
+	<insert id="insertPrizePeo">
+		INSERT INTO t_prizepeo (id,activeId,staffId,prizeLevel,bu) VALUES (#{id},#{activeId},#{staffId},#{prizeLevel},#{bu})
+	</insert>
+	<!-- 根据staffid查询是否中奖 -->
+	<select id="selectIfLucky" resultType="java.util.Map">
+		SELECT bu,activeId,prizeLevel FROM t_prizepeo WHERE staffId = #{staffId} AND activeId = #{activeId}
+	</select>
+	<!-- 根据活动id查询活动状态 -->
+	<select id="selectActiveStatus" resultType="java.lang.String">
+		SELECT `status` FROM t_active_status WHERE id = #{id}
+	</select>
+	<!-- 批量插入中奖人名单 -->
+	<insert id="insertPrizePeoBatch" parameterType="java.util.List">
+		INSERT INTO t_prizepeo (id,activeId,staffId,prizeLevel,bu)
+		VALUES
+		<foreach collection="list" item="item" index="index" separator=",">
+			(#{item.id,jdbcType=VARCHAR}, #{item.activeId,jdbcType=VARCHAR},#{item.staffId,jdbcType=VARCHAR},
+			#{item.prizeLevel,jdbcType=INTEGER},#{item.bu,jdbcType=VARCHAR})
+		</foreach>
+	</insert>
+	<!-- 查询数据库活动状态 -->
+	<select id="selectActiveStatusMap" resultType="java.util.Map">
+		SELECT id,`status` FROM t_active_status
+	</select>
+</mapper>

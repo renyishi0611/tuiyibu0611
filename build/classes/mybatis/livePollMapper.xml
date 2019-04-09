@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.none.web.dao.LivePollExportDao">
+	<resultMap type="LivePollReportPO" id="livePollReportMap">
+		<result property="livePollQuestion" column="live_poll_question" />
+		<result property="answer" column="answer" />
+		<result property="staffId" column="staffId" />
+	</resultMap>
+	<select id="getLivePollReports" parameterType="java.util.Map" resultMap="livePollReportMap">
+		SELECT
+			t.content as live_poll_question,
+			t2.answer as answer,
+			t4.staffId as staffId
+		FROM
+			t_live_poll t,
+			t_live_poll_answer t2,
+			t_live_poll_result t3,
+			t_user_app t4
+		WHERE
+			t.id = t2.poll_id
+		AND t2.poll_id = t3.live_poll_id
+		AND t2.id = t3.poll_answer_id
+		AND t3.user_id = t4.user_id
+		AND t.is_delete = 0
+		AND t2.poll_score != 0
+		<trim>
+			<if test="startTime != null">AND t.submit_time &gt;= #{startTime}</if>
+			<if test="endTime != null">AND t.submit_time &lt;= #{endTime}</if>
+		</trim>
+	</select>
+</mapper>

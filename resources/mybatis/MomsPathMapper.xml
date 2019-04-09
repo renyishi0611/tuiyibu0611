@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="com.none.web.dao.MomsPathDao">
+	<!-- resultMap -->
+	<resultMap type="MomsPathPO" id="momsPathMap">
+		<id property="id" column="id" />
+		<result property="momentsId" column="moments_id" />
+		<result property="submitTime" column="submit_time" />
+		<result property="userId" column="user_id" />
+		<result property="fileScreenshot" column="file_screenshot"/>
+		<result property="filePath" column="file_path" />
+		<result property="fileName" column="file_name" />
+		<result property="fileType" column="file_type" />
+		<result property="isDelete" column="is_delete"/>
+	</resultMap>
+	<!-- 通过moments_id插入上传的文件 -->
+	<insert id="insertMomPath" parameterType="com.none.web.po.MomsPathPO">
+		insert into t_moms_paths(moments_id,submit_time,user_id,file_screenshot,file_path,file_name,file_type,is_delete) 
+		values(#{momentsId},NOW(),#{userId},#{fileScreenshot},#{filePath},#{fileName},#{fileType},0)
+	</insert>
+	
+	<update id="deletePathByMomId" parameterType="java.lang.Integer">
+		update t_moms_paths set is_delete=1 where moments_id=#{id}
+	</update>
+	<!-- App的resultMap -->
+	<resultMap type="MomsPathPO" id="appMomsPathMap">
+		<result property="fileName" column="file_name" />
+		<result property="filePath" column="file_path" />
+		<result property="fileType" column="file_type" />
+	</resultMap>
+	<!-- 通过moments_id查询插入的资源文件信息列表 -->
+	<select id="selectPathListByMomentsId" parameterType="integer" resultMap="appMomsPathMap">
+			SELECT
+				file_path,
+				file_name,
+				file_type
+			FROM
+				t_moms_paths
+			WHERE
+				moments_id = #{id}
+			AND is_delete = 0
+			ORDER BY id
+	</select>
+	
+	<resultMap type="MomentDetailPathPO" id="myMomsPathMap">
+		<result property="filePath" column="file_path" />
+		<result property="fileName" column="file_name" />
+		<result property="fileType" column="file_type" />
+	</resultMap>
+	<select id="selectCMSPathListByMomentsId" parameterType="java.lang.Integer" resultMap="myMomsPathMap">
+		SELECT file_path,
+			   file_name,
+			   file_type
+		  FROM t_moms_paths
+		 WHERE moments_id = #{id}
+		   AND is_delete = 0
+	  ORDER BY id
+	</select>
+	<!-- 查询moments_id下面的资源文件的总数 -->
+	<select id="selectPathCountByMomentsId" parameterType="integer"
+		resultType="integer">
+		<!-- SELECT count(*) from t_moms_paths where moments_id=#{id} AND is_delete = 0 -->
+		SELECT
+			count(*)
+		FROM
+			t_moms_paths
+		WHERE
+			moments_id = #{id} 
+		AND is_delete = 0
+	</select>
+	<!-- slider查询moments信息，返回5条，只要图片，不要其它格式的 -->
+	<select id="selectSliderMomentsList" resultMap="appMomsPathMap">
+		select * from (SELECT
+					tmp.file_path,
+					tmp.moments_id,
+					tm.submit_time,
+					tmp.file_type,
+					tu.user_name,
+		      		tm.submit_user,
+		 			tu.branch as displayName,
+					t_bu.buPhoto as headPortrait,
+					tu.isVIP,
+		  			MIN(tmp.id) as mi
+				FROM
+					t_moms_paths tmp
+		    	LEFT JOIN t_moments tm ON tmp.moments_id = tm.id
+				LEFT JOIN t_user tu ON tm.submit_user = tu.user_id
+		    LEFT JOIN t_bu t_bu on t_bu.id=tu.groupId
+				WHERE
+					tmp.file_type = 'image'
+					AND tm.is_delete = 0
+					AND tmp.is_delete = 0
+					AND tm.submit_type = 'Published'
+				GROUP BY
+					tmp.moments_id) mm
+				ORDER BY
+					mm.submit_time DESC
+				LIMIT 0,5
+	</select>
+	<!-- 查询含有文件的slidermoments的总数 -->
+	<select id="selectCountSliderMoments" resultType="integer">
+		SELECT
+			COUNT(*)
+		FROM
+			(
+				SELECT
+					moments_id
+				FROM
+					t_moms_paths
+				GROUP BY
+					moments_id
+			) tmd
+	</select>
+	<select id="getTransformList" parameterType="java.util.Map" resultMap="appMomsPathMap">
+		SELECT
+			*
+		FROM
+			(
+				SELECT
+					t.moments_id,
+					t.file_screenshot,
+					count(t.id) AS count,
+					t.file_type,
+					m.submit_time,
+					MIN(t.id) AS mi
+				FROM
+					t_moms_paths t,
+					t_user u,
+					t_moments m
+				WHERE
+					m.submit_user = u.user_id
+				AND t.moments_id = m.id
+				AND u.branch = 'WTP'
+				AND t.is_delete = 0
+				AND m.is_delete = 0
+				AND m.submit_type = 'Published'
+				GROUP BY
+					t.moments_id
+			) mm
+		WHERE
+			file_type != 'pdf'
+		ORDER BY
+			mm.submit_time DESC
+		LIMIT #{startRow},#{pageSize}	
+	</select>
+	<select id="getTransformCount" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(1) 
+		FROM (
+			SELECT
+			*
+			FROM
+				(
+					SELECT
+						t.moments_id,
+						t.file_screenshot,
+						count(t.id) AS count,
+						t.file_type,
+						m.submit_time,
+						MIN(t.id) AS mi
+					FROM
+						t_moms_paths t,
+						t_user u,
+						t_moments m
+					WHERE
+						m.submit_user = u.user_id
+					AND t.moments_id = m.id
+					AND u.branch = 'WTP'
+					AND t.is_delete = 0
+					AND m.is_delete = 0
+					AND m.submit_type = 'Published'
+					GROUP BY
+						t.moments_id
+				) mm
+			WHERE
+				file_type != 'pdf'
+			ORDER BY
+				mm.submit_time DESC
+		) t2
+	</select>
+</mapper>
